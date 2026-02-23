@@ -316,3 +316,11 @@ if postcode_input:
     with col2:
         st.subheader("Legend")
         st.markdown(legend_html, unsafe_allow_html=True)
+
+# =====================================================
+# clear memory between runs
+# =====================================================
+
+import gc
+del buildings_layer, greenspace_layer, carpark_layer
+gc.collect()
