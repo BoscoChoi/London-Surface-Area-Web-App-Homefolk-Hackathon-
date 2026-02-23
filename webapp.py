@@ -1,0 +1,313 @@
+"""
+POSTCODE → OUTPUT AREA SURFACE ANALYSIS
+Streamlit Web App
+"""
+
+# ==============================
+# IMPORTS
+# ==============================
+
+import streamlit as st
+import geopandas as gpd
+import pandas as pd
+import pydeck as pdk
+from shapely.ops import unary_union
+from shapely.geometry import GeometryCollection
+
+# ==============================
+# PAGE CONFIG
+# ==============================
+
+st.set_page_config(page_title="London Surface Analysis", layout="wide")
+st.title("London Output Area Surface Breakdown")
+
+# ==============================
+# DATA LOADING (CACHED)
+# ==============================
+
+@st.cache_data
+def load_postcode_lookup():
+    """
+    Load postcode → OA21 lookup table.
+    Cached so it only loads once.
+    """
+    df = pd.read_csv("data/london_postcode_to_oa21_2025.csv")
+    df["pcds"] = df["pcds"].str.upper().str.strip()
+    return df
+
+
+@st.cache_data
+def load_spatial_layers():
+    """
+    Load all spatial datasets.
+    Cached for performance.
+    """
+    oa = gpd.read_file("data/oa_2021_london.gpkg")
+    greenspace = gpd.read_file("data/OS_Greenspace_Ldn.gpkg")
+    buildings = gpd.read_file("data/osm_buildings.gpkg")
+    carpark = gpd.read_file("data/osm_traffic.gpkg")
+
+    return oa, greenspace, buildings, carpark
+
+
+postcode_lookup = load_postcode_lookup()
+oa_layer, greenspace_layer, buildings_layer, carpark_layer = load_spatial_layers()
+
+
+# ==============================
+# USER INPUT
+# ==============================
+
+postcode_input = st.text_input("Enter London Postcode").upper().strip()
+
+
+# ==============================
+# MAIN LOGIC
+# ==============================
+
+if postcode_input:
+
+    # --------------------------------
+    # STEP 1: Lookup OA Code
+    # --------------------------------
+    match = postcode_lookup[postcode_lookup["pcds"] == postcode_input]
+
+    if match.empty:
+        st.error("Postcode not found.")
+        st.stop()
+
+    oa_code = match.iloc[0]["oa21"]
+
+    st.write(f"Matched Output Area: **{oa_code}**")
+
+    # --------------------------------
+    # STEP 2: Extract OA Boundary
+    # --------------------------------
+    oa_boundary = oa_layer[oa_layer["OA21CD"] == oa_code]
+
+    if oa_boundary.empty:
+        st.error("Output Area geometry not found.")
+        st.stop()
+
+    # Project everything to metric CRS for accurate area calculation
+    oa_boundary = oa_boundary.to_crs(epsg=3857)
+
+    # --------------------------------
+    # STEP 3: Clip Layers to OA
+    # --------------------------------
+
+    buildings = gpd.overlay(buildings_layer.to_crs(epsg=3857), oa_boundary, how="intersection")
+    carpark = gpd.overlay(carpark_layer.to_crs(epsg=3857), oa_boundary, how="intersection")
+    greenspace = gpd.overlay(greenspace_layer.to_crs(epsg=3857), oa_boundary, how="intersection")
+
+    # --------------------------------
+    # STEP 4: Apply Priority Rules
+    # --------------------------------
+    # Priority: buildings > car park > greenspace
+
+    # Union building geometry
+    building_union = unary_union(buildings.geometry) if not buildings.empty else GeometryCollection()
+
+    # Remove building overlap from car park
+    carpark["geometry"] = carpark.geometry.difference(building_union)
+    carpark_union = unary_union(carpark.geometry) if not carpark.empty else GeometryCollection()
+
+    # Remove building + car park from greenspace
+    combined_union = unary_union([building_union, carpark_union])
+    greenspace["geometry"] = greenspace.geometry.difference(combined_union)
+    greenspace_union = unary_union(greenspace.geometry) if not greenspace.empty else GeometryCollection()
+
+    # --------------------------------
+    # STEP 5: Calculate Areas
+    # --------------------------------
+
+    total_area = oa_boundary.geometry.area.iloc[0]
+
+    building_area = building_union.area if not building_union.is_empty else 0
+    carpark_area = carpark_union.area if not carpark_union.is_empty else 0
+    greenspace_area = greenspace_union.area if not greenspace_union.is_empty else 0
+
+    classified_area = building_area + carpark_area + greenspace_area
+    unclassified_area = max(0, total_area - classified_area)
+
+    # --------------------------------
+    # STEP 6: Calculate Percentages
+    # --------------------------------
+
+    building_pct = (building_area / total_area) * 100
+    carpark_pct = (carpark_area / total_area) * 100
+    greenspace_pct = (greenspace_area / total_area) * 100
+    unclassified_pct = (unclassified_area / total_area) * 100
+
+    # --------------------------------
+    # STEP 7: Display Results
+    # --------------------------------
+
+    st.subheader("Surface Breakdown (%)")
+
+    results_df = pd.DataFrame({
+        "Surface Type": ["Buildings", "Car Park", "Greenspace", "Unclassified"],
+        "Percentage": [
+            building_pct,
+            carpark_pct,
+            greenspace_pct,
+            unclassified_pct
+        ]
+    })
+
+    st.dataframe(results_df)
+
+    # --------------------------------
+    # STEP 8: Prepare Map (convert back to WGS84)
+    # --------------------------------
+
+    display_oa = oa_boundary.to_crs(epsg=4326)
+
+    layer = pdk.Layer(
+        "GeoJsonLayer",
+        display_oa.__geo_interface__,
+        pickable=True,
+        filled=False,
+        stroked=True,
+        get_line_color=[255, 0, 0],
+        line_width_min_pixels=2,
+    )
+
+    view_state = pdk.ViewState(
+        latitude=display_oa.geometry.centroid.y.iloc[0],
+        longitude=display_oa.geometry.centroid.x.iloc[0],
+        zoom=14,
+    )
+
+    deck = pdk.Deck(
+        layers=[layer],
+        initial_view_state=view_state
+    )
+
+    st.subheader("Output Area Boundary")
+    st.pydeck_chart(deck)
+
+    # --------------------------------
+    # STEP 9: Debug Info
+    # --------------------------------
+
+    st.markdown("---")
+    st.write("Debug Info:")
+    st.write(f"Total Area (m²): {total_area:,.0f}")
+
+# --------------------------------
+# STEP 10: Prepare Map Layers
+# --------------------------------
+
+# Convert OA back to WGS84 for display
+display_oa = oa_boundary.to_crs(epsg=4326)
+
+# Convert classified geometries back to WGS84
+def to_wgs84(geom):
+    if geom.is_empty:
+        return None
+    return gpd.GeoSeries([geom], crs=3857).to_crs(epsg=4326).iloc[0]
+
+building_geom_display = to_wgs84(building_union)
+carpark_geom_display = to_wgs84(carpark_union)
+greenspace_geom_display = to_wgs84(greenspace_union)
+
+layers = []
+
+# Buildings Layer (Red)
+if building_geom_display:
+    layers.append(
+        pdk.Layer(
+            "GeoJsonLayer",
+            gpd.GeoSeries([building_geom_display]).__geo_interface__,
+            filled=True,
+            get_fill_color=[200, 0, 0, 180],
+            pickable=True,
+        )
+    )
+
+# Car Park Layer (Grey)
+if carpark_geom_display:
+    layers.append(
+        pdk.Layer(
+            "GeoJsonLayer",
+            gpd.GeoSeries([carpark_geom_display]).__geo_interface__,
+            filled=True,
+            get_fill_color=[150, 0, 200, 180],
+            pickable=True,
+        )
+    )
+
+# Greenspace Layer (Green)
+if greenspace_geom_display:
+    layers.append(
+        pdk.Layer(
+            "GeoJsonLayer",
+            gpd.GeoSeries([greenspace_geom_display]).__geo_interface__,
+            filled=True,
+            get_fill_color=[0, 180, 0, 180],
+            pickable=True,
+        )
+    )
+
+# OA Boundary Outline (Black)
+layers.append(
+    pdk.Layer(
+        "GeoJsonLayer",
+        display_oa.__geo_interface__,
+        filled=False,
+        stroked=True,
+        get_line_color=[255, 215, 0],
+        line_width_min_pixels=2,
+    )
+)
+
+# Define map centre
+view_state = pdk.ViewState(
+    latitude=display_oa.geometry.centroid.y.iloc[0],
+    longitude=display_oa.geometry.centroid.x.iloc[0],
+    zoom=15,
+)
+
+deck = pdk.Deck(
+    layers=layers,
+    initial_view_state=view_state,
+)
+
+st.subheader("Surface Classification Map")
+st.pydeck_chart(deck)
+
+
+# --------------------------------
+# STEP 11: Add Legend (Key)
+# --------------------------------
+
+st.subheader("Legend")
+
+legend_html = """
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 16px;">
+
+  <div style="display: flex; align-items: center;">
+    <div style="width: 20px; height: 20px; background-color: rgb(200,0,0); margin-right: 10px;"></div>
+    Buildings
+  </div>
+
+  <div style="display: flex; align-items: center;">
+    <div style="width: 20px; height: 20px; background-color: rgb(150,0,200); margin-right: 10px;"></div>
+    Car Park
+  </div>
+
+  <div style="display: flex; align-items: center;">
+    <div style="width: 20px; height: 20px; background-color: rgb(0,180,0); margin-right: 10px;"></div>
+    Greenspace
+  </div>
+
+  <div style="display: flex; align-items: center;">
+    <div style="width: 20px; height: 20px; border: 3px solid rgb(255,215,0); margin-right: 10px;"></div>
+    Output Area Boundary
+  </div>
+
+</div>
+"""
+
+st.markdown(legend_html, unsafe_allow_html=True)
