@@ -8,3 +8,5 @@ Other contributors
 - Ziyi Lin
 
 [View the app](https://london-surface-area.streamlit.app/)
+
+Caveat: The app currently suffers from easily exceeding usage limits of Streamlit because of loading an entire buildings geoparaquet file for Greater London from OSM. The code in accessing this spatial layer will have to be modified later.
