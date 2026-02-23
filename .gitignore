@@ -209,6 +209,6 @@ __marimo__/
 *.gzip
 *.feather
 *.geofeather
-*.parquet
+# *.parquet
 *.geoparquet
 *.qgz
