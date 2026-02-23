@@ -53,7 +53,7 @@ def load_parquet_from_url(url):
 
 url = "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/osm_buildings.parquet"
 
-@st.cache_data
+#@st.cache_data
 def load_spatial_layers():
     oa = gpd.read_file("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/oa_2021_london.gpkg")
     greenspace = gpd.read_file("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/OS_Greenspace_Ldn.gpkg")
