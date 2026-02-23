@@ -1,0 +1,20 @@
+```{python}
+import geopandas as gpd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+gdf = gpd.read_file("./data/osm_buildings.gpkg")
+
+```
+
+```{python}
+gdf = gdf.drop(columns=['code','fclass','osm_id','name','type'])
+
+output_path = "data/osm_buildings.parquet"
+
+gdf.to_parquet(
+    output_path,
+    engine="pyarrow",
+    compression="snappy"   # fast + good compression
+)
+```
