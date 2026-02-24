@@ -1,12 +1,17 @@
-# London Surface Area Web App - Hackathon
+# London Surface Area Web App - Sustainable Housing Hackathon with homefolk and UCL SU
 
-This is a web app developed during a one day hackathon organised by UCLSU and the social enterprise Homefolk. The app allows users to input a postcode in London, and returns the breakdown of paved, non-paved and building footprint surface area breakdown in the neighbourhood around the postcode. It is currently still at a prototype stage. Ultimately, it aims to support Homefolk's vision in identifying opportunity areas for infill tiny housing.
+This is a web app developed during a one day hackathon organised by UCL SU and the social enterprise homefolk. The app allows users to input a postcode in London, and returns the breakdown of paved, non-paved and building footprint surface area breakdown in the neighbourhood around the postcode. It is currently still at a prototype stage. Ultimately, it aims to support Homefolk's vision in identifying opportunity areas for tiny housing and its 'village' model.
 
 Contributors:
 - Bosco Choi
 - Fiona Pacolli
 - Alicia Grassby
 - Ziyi Lin
+
+## My Contribution (Fiona Pacolli)
+- Cleaned and processed ONSPD May 2025 data in R
+- Generated London postcode-to-OA21 lookup table
+- Exported processed dataset for integration into the web app
 
 [View the app](https://london-surface-area.streamlit.app/)
 
