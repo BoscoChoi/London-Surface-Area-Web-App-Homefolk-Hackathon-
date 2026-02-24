@@ -36,37 +36,6 @@ st.write("Identify potential infill opportunity areas within Output Areas.")
 
 
 # =====================================================
-# LOAD DATA (CACHED FOR PERFORMANCE)
-# =====================================================
-
-@st.cache_data
-def load_postcode_lookup():
-    df = pd.read_csv("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/london_postcode_to_oa21_2025.csv")
-    df["pcds"] = df["pcds"].str.upper().str.strip()
-    df["pcds"] = df["pcds"].str.replace(" ", "")
-    return df
-
-def load_parquet_from_url(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    return gpd.read_parquet(BytesIO(response.content))
-
-url = "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/osm_buildings.parquet"
-
-#@st.cache_data
-def load_spatial_layers():
-    oa = gpd.read_file("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/oa_2021_london.gpkg")
-    greenspace = gpd.read_file("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/OS_Greenspace_Ldn.gpkg")
-    buildings = load_parquet_from_url(url)
-    carpark = gpd.read_file("https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/osm_traffic.gpkg")
-    return oa, greenspace, buildings, carpark
-
-
-postcode_lookup = load_postcode_lookup()
-oa_layer, greenspace_layer, buildings_layer, carpark_layer = load_spatial_layers()
-
-
-# =====================================================
 # USER INPUT
 # =====================================================
 
@@ -79,6 +48,47 @@ postcode_input = postcode_input.replace(" ", "")
 # =====================================================
 
 if postcode_input:
+
+    # =====================================================
+    # LOAD DATA (CACHED FOR PERFORMANCE)
+    # =====================================================
+
+    # @st.cache_data
+    def load_postcode_lookup():
+        df = pd.read_csv(
+            "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/london_postcode_to_oa21_2025.csv"
+        )
+        df["pcds"] = df["pcds"].str.upper().str.strip()
+        df["pcds"] = df["pcds"].str.replace(" ", "")
+        return df
+
+
+    def load_parquet_from_url(url):
+        response = requests.get(url)
+        response.raise_for_status()
+        return gpd.read_parquet(BytesIO(response.content))
+
+
+    url = "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/osm_buildings.parquet"
+
+
+    # @st.cache_data
+    def load_spatial_layers():
+        oa = gpd.read_file(
+            "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/oa_2021_london.gpkg"
+        )
+        greenspace = gpd.read_file(
+            "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/OS_Greenspace_Ldn.gpkg"
+        )
+        buildings = load_parquet_from_url(url)
+        carpark = gpd.read_file(
+            "https://raw.githubusercontent.com/BoscoChoi/London-Surface-Area-Web-App-Homefolk-Hackathon-/main/data/osm_traffic.gpkg"
+        )
+        return oa, greenspace, buildings, carpark
+
+
+    postcode_lookup = load_postcode_lookup()
+    oa_layer, greenspace_layer, buildings_layer, carpark_layer = load_spatial_layers()
 
     # -----------------------------------------
     # STEP 1: POSTCODE → OA LOOKUP
@@ -322,5 +332,5 @@ if postcode_input:
 # =====================================================
 
 import gc
-del buildings_layer, greenspace_layer, carpark_layer
+del oa_layer(), buildings_layer, greenspace_layer, carpark_layer
 gc.collect()
