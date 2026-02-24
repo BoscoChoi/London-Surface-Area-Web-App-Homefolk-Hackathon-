@@ -24,6 +24,7 @@ from shapely.ops import unary_union
 from shapely.geometry import GeometryCollection
 import requests
 from io import BytesIO
+import gc
 
 
 # =====================================================
@@ -331,6 +332,6 @@ if postcode_input:
 # clear memory between runs
 # =====================================================
 
-import gc
-del oa_layer(), buildings_layer, greenspace_layer, carpark_layer
+
+del oa_layer, buildings_layer, greenspace_layer, carpark_layer
 gc.collect()
