@@ -333,5 +333,5 @@ if postcode_input:
 # =====================================================
 
 
-del oa_layer, buildings_layer, greenspace_layer, carpark_layer
+del buildings_layer, greenspace_layer, carpark_layer
 gc.collect()
