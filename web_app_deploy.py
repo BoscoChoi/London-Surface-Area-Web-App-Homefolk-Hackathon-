@@ -328,10 +328,10 @@ if postcode_input:
         st.subheader("Legend")
         st.markdown(legend_html, unsafe_allow_html=True)
 
-# =====================================================
-# clear memory between runs
-# =====================================================
+    # =====================================================
+    # step 10: clear memory between runs
+    # =====================================================
 
 
-del buildings_layer, greenspace_layer, carpark_layer
-gc.collect()
+    del oa_layer, buildings_layer, greenspace_layer, carpark_layer
+    gc.collect()
